@@ -229,3 +229,66 @@ export async function getUser(email: string) {
     throw new Error('Failed to fetch user.');
   }
 }
+
+// 统计所有已收款的发票金额
+export async function fetchTotalPaid() {
+  try {
+    const data = await sql`
+      SELECT SUM(amount) AS total_paid
+      FROM invoices
+      WHERE status = 'paid'
+    `;
+
+    const totalPaid = data.rows[0].total_paid;
+    return formatCurrency(totalPaid);
+  } catch (error) {
+    console.error('Database Error:', error);
+    throw new Error('Failed to fetch total paid.');
+  }
+}
+// 统计所有待处理的发票金额
+export async function fetchTotalPending() {
+  try {
+    const data = await sql`
+      SELECT SUM(amount) AS total_pending
+      FROM invoices
+      WHERE status = 'pending'
+    `;
+
+    const totalPending = data.rows[0].total_pending;
+    return formatCurrency(totalPending);
+  } catch (error) {
+    console.error('Database Error:', error);
+    throw new Error('Failed to fetch total pending.');
+  }
+}
+// 统计发票总数
+export async function fetchTotalInvoices() {
+  try {
+    const data = await sql`
+      SELECT COUNT(*) AS total_invoices
+      FROM invoices
+    `;
+
+    const totalInvoices = data.rows[0].total_invoices;
+    return totalInvoices;
+  } catch (error) {
+    console.error('Database Error:', error);
+    throw new Error('Failed to fetch total invoices.');
+  }
+}
+// 统计总客户数
+export async function fetchTotalCustomers() {
+  try {
+    const data = await sql`
+      SELECT COUNT(*) AS total_customers
+      FROM customers
+    `;
+
+    const totalCustomers = data.rows[0].total_customers;
+    return totalCustomers;
+  } catch (error) {
+    console.error('Database Error:', error);
+    throw new Error('Failed to fetch total customers.');
+  }
+}
