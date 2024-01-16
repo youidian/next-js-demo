@@ -7,9 +7,17 @@ export default function Page() {
     const messagesEndRef = useRef(null);
 
     // Simulate AI responses for demonstration
-    const getAIResponse = (userInput) => {
-        return `AI response to "${userInput}"`;
-    }
+    const getAIResponse = async (userInput: string) => {
+        const res = await fetch('/api/tongyi', {
+            method: 'POST', // Assuming it's a POST request
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ message: userInput }),
+        });
+        const data = await res.json();
+        return `AI response to "${data}"`; // Assuming 'data' is the response you want to format
+    };
 
     const scrollToBottom = () => {
         messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
