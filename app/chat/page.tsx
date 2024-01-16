@@ -16,7 +16,8 @@ export default function Page() {
             body: JSON.stringify({ message: userInput }),
         });
         const data = await res.json();
-        return `AI response to "${data}"`; // Assuming 'data' is the response you want to format
+        console.log("data",data)
+        return `"${data.output.text}"`; // Assuming 'data' is the response you want to format
     };
 
     const scrollToBottom = () => {
