@@ -2,10 +2,9 @@
 import { useState, useEffect, useRef } from 'react';
 
 export default function Page() {
-    const [messages, setMessages] = useState([]);
+    const [messages, setMessages] = useState<{text:string,sender:string}[]>([]);
     const [inputValue, setInputValue] = useState('');
     const messagesEndRef = useRef(null);
-
     // Simulate AI responses for demonstration
     const getAIResponse = async (userInput: string) => {
         const res = await fetch('/api/tongyi', {
@@ -20,6 +19,39 @@ export default function Page() {
         return `"${data.output.text}"`; // Assuming 'data' is the response you want to format
     };
 
+    const getAIStreamResponse = async (userInput: string) => {
+        // 先添加一个新的AI响应到messages
+        setMessages(messages => [...messages, { text: '正在获取回答...', sender: 'ai' }]);
+
+        const response = await fetch('/api/tongyi',
+            {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Accept':'text/event-stream',
+                },
+                body: JSON.stringify({ message: userInput })});
+        const reader = response.body?.getReader();
+        if(reader){
+            // Read the data
+            while(true) {
+                const { done, value } = await reader?.read();
+                if (done) {
+                    break;
+                }
+                let result = new TextDecoder("utf-8").decode(value);
+                console.log("result",result);
+                // 直接在setMessages中处理更新
+                setMessages(prevMessages => {
+                    const newMessages = [...prevMessages];
+                    newMessages[newMessages.length - 1] = { text: result, sender: 'ai' };
+                    return newMessages;
+                });
+            }
+        }
+
+    }
+
     const scrollToBottom = () => {
         messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
     }
@@ -28,22 +60,20 @@ export default function Page() {
         scrollToBottom();
     }, [messages]);
 
-    const handleInputChange = (e) => {
+    const handleInputChange = (e:any) => {
         setInputValue(e.target.value);
     }
 
-    const handleSendClick = () => {
+    const handleSendClick = async () => {
         if (inputValue.trim() !== '') {
             // Add user message
-            setMessages([...messages, { text: inputValue, sender: 'user' }]);
-            // Add AI response
-            const aiResponse = getAIResponse(inputValue);
-            setMessages(messages => [...messages, { text: aiResponse, sender: 'ai' }]);
+            setMessages([...messages, {text: inputValue, sender: 'user'}]);
             setInputValue('');
+            getAIStreamResponse(inputValue);
         }
     }
 
-    const handleKeyPress = (e) => {
+    const handleKeyPress = (e:any) => {
         if (e.key === 'Enter') {
             handleSendClick();
         }
