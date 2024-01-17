@@ -22,7 +22,6 @@ export default function Page() {
     const getAIStreamResponse = async (userInput: string) => {
         // 先添加一个新的AI响应到messages
         setMessages(messages => [...messages, { text: '正在获取回答...', sender: 'ai' }]);
-
         const response = await fetch('/api/tongyi',
             {
                 method: 'POST',
@@ -49,10 +48,10 @@ export default function Page() {
                 });
             }
         }
-
     }
 
     const scrollToBottom = () => {
+        // @ts-ignore
         messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
     }
 
