@@ -94,18 +94,9 @@ export class QwenChatApi{
                 return Promise.resolve({done: true});
             }
         };
-        const ctrl = new AbortController();
-
-        const requestTimeoutId = setTimeout(
-            () => ctrl.abort(),
-            30 * 1000,
-        );
         const requestData = {
             model: this.model,
-            input: {
-                messages,
-                history,
-            },
+            input: {messages:[...history,...messages]},
             parameters: {},
         };
         async function fetchAi() {
@@ -168,19 +159,18 @@ export class QwenChatApi{
     chat(messages:Message[]=[], history:Message[]= []){
         const requestData = {
             model: this.model,
-            input: {
-                messages,
-                history,
-            },
+            input: {messages:[...history,...messages]},
             parameters: {},
         };
+        const requestStr = JSON.stringify(requestData)
+        console.log("qwen request:",requestStr)
         return  fetch(GENERATION_URL, {
             method: 'POST', // Assuming it's a POST request
             headers: {
                 'Content-Type': 'application/json',
                 'Authorization': `Bearer ${QwenChatApi.API_KEY}`,
             },
-            body: JSON.stringify(requestData),
+            body: requestStr,
         }).then((response) => response.json());
     }
 }
@@ -194,7 +184,7 @@ export  function StreamResponse(stream:ReadableStream){
    })
 }
 
-interface Message{
+export  interface Message{
     role: string;
     content: string;
 }
