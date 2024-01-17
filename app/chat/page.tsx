@@ -40,7 +40,7 @@ export default function Page() {
                     break;
                 }
                 let result = new TextDecoder("utf-8").decode(value);
-                console.log("result",result);
+                // console.log("result",result);
                 // 直接在setMessages中处理更新
                 setMessages(prevMessages => {
                     const newMessages = [...prevMessages];

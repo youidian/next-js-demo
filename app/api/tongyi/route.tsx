@@ -37,22 +37,37 @@ function iteratorToStream(iterator: any) {
 }
 
 const encoder = new TextEncoder()
-
+const decode = new TextDecoder("utf-8")
 
 
 export  async function POST(req:NextRequest, res:NextResponse) {
     // Extract the request body
     const data = await req.json();
     // Stream Chat
-    const chatStream = streamChat({ messages: [{ role: 'user', content: data.message }], history: [] });
+    const chatStream =  streamChat({ messages: [{ role: 'user', content: data.message }], history: [] });
     async function* makeIterator() {
         try {
             for await
                 (const message of chatStream) {
-                console.log(message);
-                const parse = JSON.parse(message);
-                // 处理每个消息
-                yield encoder.encode(parse["output"]["text"])
+                const decodedMessage = decode.decode(message);
+
+                // Find the start of the JSON content
+                const jsonStartIndex = decodedMessage.indexOf('{');
+                if (jsonStartIndex === -1) {
+                    console.log("No JSON content found in the message.");
+                    continue;
+                }
+
+                // Extract the JSON content
+                const jsonString = decodedMessage.substring(jsonStartIndex);
+
+                try {
+                    const parse = JSON.parse(jsonString);
+                    // Process each message
+                    yield encoder.encode(parse["output"]["text"]);
+                } catch (error) {
+                    console.error("Error parsing JSON:", error);
+                }
             }
         } catch (err) {
             console.error('Error during streaming:', err);
@@ -94,21 +109,21 @@ export const chat = async (data: { messages: any; history: any; }) => {
     }).then((response) => response.json());
 };
 
-function streamChat(data: { messages: any; history: any; }){
-    let resolveNext:Function;
-    let rejectNext:Function;
+ function streamChat(data: { messages: any; history: any; }) {
+    let resolveNext: Function;
+    let rejectNext: Function;
     let pending = false;
     let done = false;
-    let queue:any[] = [];
+    let queue: any[] = [];
     // 创建异步迭代器
     const asyncIterator = {
         next() {
             if (queue.length > 0) {
                 // 如果队列中有数据，立即返回
-                return Promise.resolve({ value: queue.shift(), done: false });
+                return Promise.resolve({value: queue.shift(), done: false});
             } else if (done) {
                 // 如果流已经结束，返回结束信号
-                return Promise.resolve({ done: true });
+                return Promise.resolve({done: true});
             } else {
                 // 否则，等待下一个值
                 pending = true;
@@ -123,13 +138,13 @@ function streamChat(data: { messages: any; history: any; }){
         return() {
             done = true;
             if (pending) {
-                resolveNext({ done: true });
+                resolveNext({done: true});
             }
-            return Promise.resolve({ done: true });
+            return Promise.resolve({done: true});
         }
     };
     const ctrl = new AbortController();
-    const { messages, history = [] } = data;
+    const {messages, history = []} = data;
     const requestTimeoutId = setTimeout(
         () => ctrl.abort(),
         30 * 1000,
@@ -142,40 +157,40 @@ function streamChat(data: { messages: any; history: any; }){
         },
         parameters: {},
     };
-    fetchEventSource(GENERATION_URL, {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-            'Accept':'text/event-stream',
-            'Authorization': 'Bearer sk-e291921d55444a72a3c5cd345452e525',
-        },
-        body: JSON.stringify(requestData),
-        signal: ctrl.signal,
-        async onopen(response) {
-            clearTimeout(requestTimeoutId);
-        },
-        onmessage(msg) {
-            const text = msg.data;
-            if (pending) {
-                resolveNext({ value: text, done: false });
-                pending = false;
-            } else {
-                queue.push(text);
+    async function fetchAi() {
+        const response = await fetch(GENERATION_URL,
+            {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Accept': 'text/event-stream',
+                    'Authorization': 'Bearer sk-e291921d55444a72a3c5cd345452e525',
+                },
+                body: JSON.stringify(requestData)
+            });
+        if (!response) {
+            // @ts-ignore
+            rejectNext(new Error('No response'));
+        } else {
+            // @ts-ignore
+            for await (const chunk of response?.body) {
+                // Do something with each chunk
+                // Here we just accumulate the size of the response.
+                if (pending) {
+                    // @ts-ignore
+                    resolveNext({value: chunk, done: false});
+                    pending = false;
+                } else {
+                    queue.push(chunk);
+                }
             }
-        },
-        onclose() {
-            done = true;
             if (pending) {
-                resolveNext({ done: true });
-            }
-        },
-        onerror(err) {
-            done = true;
-            if (pending) {
-                rejectNext(err);
+                // @ts-ignore
+                resolveNext({done: true});
             }
         }
-    });
+    }
+    fetchAi().then(r => {})
     return {
         [Symbol.asyncIterator]() {
             return asyncIterator;
